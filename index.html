@@ -1810,7 +1810,7 @@ function toggleDP(wrapId) {
 
 // Close datepicker on outside click
 document.addEventListener("mousedown", e => {
-  if (!e.target.closest(".date-wrap")) {
+  if (!e.target.closest(".date-wrap") && !e.target.closest(".dp-popup")) {
     document.querySelectorAll(".dp-popup.open").forEach(p => p.classList.remove("open"));
     document.querySelectorAll(".dp-trigger.active").forEach(t => t.classList.remove("active"));
   }
