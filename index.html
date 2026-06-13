@@ -383,7 +383,7 @@ input:focus {
 /* ══════════════════════════════════════
    LIST ROWS — iOS cell style
 ══════════════════════════════════════ */
-.list-wrap { max-height:420px; overflow-y:auto; display:flex; flex-direction:column; }
+.list-wrap { max-height:530px; overflow-y:auto; display:flex; flex-direction:column; }
 .list-wrap::-webkit-scrollbar { width:3px; }
 .list-wrap::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
 
@@ -567,6 +567,21 @@ input:focus {
 }
 .debt-summary .ds-label { font-size:.75rem; color:var(--orange); font-weight:500; flex:1; }
 .debt-summary .ds-total { font-family:var(--sf-round); font-size:1.15rem; font-weight:700; color:var(--orange); }
+
+/* ══════════════════════════════════════
+   COBRO PANEL
+══════════════════════════════════════ */
+.cobro-panel { padding:20px; }
+.cobro-summary {
+  display:flex; gap:10px; margin-bottom:14px; padding:14px 16px;
+  background:rgba(90,200,250,.08); border:1px solid rgba(90,200,250,.22);
+  border-radius:var(--radius-sm); align-items:center; flex-wrap:wrap;
+}
+.cobro-summary .cs2-label { font-size:.75rem; color:var(--teal); font-weight:500; flex:1; }
+.cobro-summary .cs2-total { font-family:var(--sf-round); font-size:1.15rem; font-weight:700; color:var(--teal); }
+
+.badge.cobrada { background:rgba(90,200,250,.10); color:var(--text4); }
+.cell-amount.cobrada { color:var(--text4); text-decoration:line-through; }
 
 /* ══════════════════════════════════════
    FILTERS PANEL
@@ -891,6 +906,16 @@ input:focus {
     <div id="debt-list" class="list-wrap" style="max-height:260px"></div>
   </div>
 
+  <!-- ── POR COBRAR ─────────────────────── -->
+  <div class="glass cobro-panel">
+    <p class="t-title3" style="margin-bottom:12px">🔵 Por cobrar</p>
+    <div class="cobro-summary">
+      <span class="cs2-label">Total pendiente por cobrar</span>
+      <span class="cs2-total" id="cobro-total">$0</span>
+    </div>
+    <div id="cobro-list" class="list-wrap" style="max-height:260px"></div>
+  </div>
+
   <!-- ── NAV TABS ───────────────────────── -->
   <div class="glass" style="padding:14px 16px">
     <div class="main-nav" id="main-nav">
@@ -1139,16 +1164,15 @@ function togglePagada(id) {
    STATS
 ════════════════════════════════ */
 function calcStats(arr) {
-  let ingresos=0,gastos=0,deudas=0,cobros=0,deudasPagas=0;
+  let ingresos=0,gastos=0,deudas=0,cobros=0,deudasPagas=0,cobrasCobradas=0;
   arr.forEach(d => {
     if(d.tipo==="ingreso") ingresos+=d.monto;
     if(d.tipo==="gasto")   gastos+=d.monto;
     if(d.tipo==="deuda")   { if(!d.pagada) deudas+=d.monto; else deudasPagas+=d.monto; }
-    if(d.tipo==="cobro")   cobros+=d.monto;
+    if(d.tipo==="cobro")   { if(!d.pagada) cobros+=d.monto; else cobrasCobradas+=d.monto; }
   });
-  // balance = ingresos - gastos - deudas_pendientes
   const balance = ingresos - gastos - deudas;
-  return {ingresos,gastos,deudas,cobros,balance,deudasPagas};
+  return {ingresos,gastos,deudas,cobros,balance,deudasPagas,cobrasCobradas};
 }
 
 /* ════════════════════════════════
@@ -1172,26 +1196,40 @@ function updateCatFilter() {
    CELLS BUILDER
 ════════════════════════════════ */
 function buildCell(d, opts={}) {
-  const pagadaClass = (d.tipo==="deuda"&&d.pagada) ? " pagada" : "";
-  const amountClass = d.pagada&&d.tipo==="deuda" ? "pagada" : d.tipo;
-  const iconClass   = d.tipo+(d.tipo==="deuda"&&d.pagada?" pagada":"");
+  const isDeudaPagada = d.tipo==="deuda" && d.pagada;
+  const isCobraCobrada = d.tipo==="cobro" && d.pagada;
+  const isDone = isDeudaPagada || isCobraCobrada;
+
+  const pagadaClass = isDone ? " pagada" : "";
+  const amountClass = isDeudaPagada ? "pagada" : isCobraCobrada ? "cobrada" : d.tipo==="cobro" ? "cobro" : d.tipo;
+  const iconClass   = d.tipo + (isDone ? " pagada" : "");
 
   const editBtn = opts.noEdit ? "" :
     `<button class="btn btn-ghost btn-icon" onclick="cargarEdicion('${d.id}')" title="Editar">✏️</button>`;
   const delBtn  =
     `<button class="btn btn-danger btn-icon" onclick="eliminar('${d.id}')" title="Eliminar">🗑️</button>`;
-  const payBtn  = d.tipo==="deuda" ?
-    `<button class="btn btn-sm ${d.pagada?'btn-ghost':'btn-green'}" onclick="togglePagada('${d.id}')" title="${d.pagada?'Marcar pendiente':'Marcar como pagada'}">
+
+  let payBtn = "";
+  if (d.tipo === "deuda") {
+    payBtn = `<button class="btn btn-sm ${d.pagada?'btn-ghost':'btn-green'}" onclick="togglePagada('${d.id}')" title="${d.pagada?'Marcar pendiente':'Marcar como pagada'}">
       ${d.pagada ? "↩︎ Reabrir" : "✓ Pagada"}
-    </button>` : "";
+    </button>`;
+  } else if (d.tipo === "cobro") {
+    payBtn = `<button class="btn btn-sm ${d.pagada?'btn-ghost':'btn-teal'}" onclick="togglePagada('${d.id}')" title="${d.pagada?'Marcar pendiente':'Marcar como cobrada'}">
+      ${d.pagada ? "↩︎ Reabrir" : "✓ Cobrada"}
+    </button>`;
+  }
+
+  const badgeLabel = isDeudaPagada ? "Pagada" : isCobraCobrada ? "Cobrada" : d.tipo;
+  const badgeCls   = isDeudaPagada ? "pagada" : isCobraCobrada ? "cobrada" : d.tipo;
 
   return `<div class="cell${pagadaClass}">
     <div class="cell-icon ${iconClass}">${ICONS[d.tipo]}</div>
     <div class="cell-main">
-      <div class="cell-desc${pagadaClass?'" style="opacity:.5;text-decoration:line-through':''}">${d.descripcion}</div>
+      <div class="cell-desc${isDone?'" style="opacity:.5;text-decoration:line-through':''}">${d.descripcion}</div>
       <div class="cell-meta">
         ${d.fecha||"—"}
-        <span class="badge ${d.pagada&&d.tipo==='deuda'?'pagada':d.tipo}">${d.pagada&&d.tipo==="deuda"?"Pagada":d.tipo}</span>
+        <span class="badge ${badgeCls}">${badgeLabel}</span>
         ${d.categoria?`· ${d.categoria}`:""}
         ${d.nota?`· <em style="color:var(--text4)">${d.nota}</em>`:""}
       </div>
@@ -1396,6 +1434,24 @@ function renderDebts(){
 }
 
 /* ════════════════════════════════
+   COBROS PANEL
+════════════════════════════════ */
+function renderCobros(){
+  const cobros=data.filter(d=>d.tipo==="cobro").sort((a,b)=>{
+    if(a.pagada!==b.pagada) return a.pagada?1:-1;
+    return (b.fecha||"").localeCompare(a.fecha||"");
+  });
+  const pending=cobros.filter(d=>!d.pagada).reduce((s,d)=>s+d.monto,0);
+  document.getElementById("cobro-total").textContent=fmtCOP(pending);
+
+  const el=document.getElementById("cobro-list");
+  if(!cobros.length){
+    el.innerHTML=`<div class="empty"><span class="empty-icon">🔵</span>Sin cobros registrados</div>`; return;
+  }
+  el.innerHTML=cobros.map(d=>buildCell(d,{noEdit:false})).join("");
+}
+
+/* ════════════════════════════════
    RECENT LIST (last 30)
 ════════════════════════════════ */
 function renderRecentList(){
@@ -1493,6 +1549,9 @@ function render(){
 
   // Debts panel
   renderDebts();
+
+  // Cobros panel
+  renderCobros();
 
   // Charts
   renderCharts();
