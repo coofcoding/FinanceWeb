@@ -383,7 +383,7 @@ input:focus {
 /* ══════════════════════════════════════
    LIST ROWS — iOS cell style
 ══════════════════════════════════════ */
-.list-wrap { max-height:530px; overflow-y:auto; display:flex; flex-direction:column; }
+.list-wrap { max-height:420px; overflow-y:auto; display:flex; flex-direction:column; }
 .list-wrap::-webkit-scrollbar { width:3px; }
 .list-wrap::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
 
@@ -1171,7 +1171,7 @@ function calcStats(arr) {
     if(d.tipo==="deuda")   { if(!d.pagada) deudas+=d.monto; else deudasPagas+=d.monto; }
     if(d.tipo==="cobro")   { if(!d.pagada) cobros+=d.monto; else cobrasCobradas+=d.monto; }
   });
-  const balance = ingresos - gastos - deudas;
+  const balance = ingresos - gastos - deudas - deudasPagas;
   return {ingresos,gastos,deudas,cobros,balance,deudasPagas,cobrasCobradas};
 }
 
